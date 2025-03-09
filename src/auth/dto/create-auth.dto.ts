@@ -11,3 +11,11 @@ export class CreateAuthDto {
     @MinLength(6)
     password: string;
 }
+
+export class CodeAuthDto {
+    @IsNotEmpty()
+    _id: string;
+
+    @IsNotEmpty()
+    code: string;
+}
