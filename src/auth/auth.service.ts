@@ -43,4 +43,8 @@ export class AuthService {
   checkCode = async(checkCodeDto: CodeAuthDto) => {
     return await this.usersService.handleActive(checkCodeDto)
   }
+
+  retryActive = async(data: string) => {
+    return await this.usersService.retryActive(data)
+  }
 }

@@ -147,6 +147,39 @@ export class UsersService {
       throw new BadRequestException("Code invalid or expired")
     }
   }
+
+  async retryActive (email: string) {
+    // check email
+    const user = await this.userModel.findOne({email})
+
+    if(!user) {
+      throw new BadRequestException("Email not found")
+    }
+    if(user.isActive) {
+      throw new BadRequestException("Account already active")
+    }
+
+    // create code
+    const codeId = uuidv4()
+
+    //update user
+    await user.updateOne({
+      codeId: codeId, 
+      codeExpired: dayjs().add(5, 'minutes')
+    })
+
+    //send email
+    this.mailerService.sendMail({
+      to: user.email, // list of receivers
+      subject: 'Activate your account at Minh Foods', // Subject line
+      template: "register",
+      context: {
+        name: user?.name ?? user.email,
+        activationCode: codeId
+      }
+    })
+    return {_id: user._id}
+  }
 }
 
 
