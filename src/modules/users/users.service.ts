@@ -7,7 +7,7 @@ import { Model } from 'mongoose';
 import { hashPasswordHelper } from '@/utils/helper';
 import aqp from 'api-query-params';
 import mongoose from 'mongoose';
-import { CodeAuthDto, CreateAuthDto } from '@/auth/dto/create-auth.dto';
+import { ChangePasswordAuthDto, CodeAuthDto, CreateAuthDto } from '@/auth/dto/create-auth.dto';
 import { v4 as uuidv4 } from 'uuid';
 import dayjs from 'dayjs';
 import { MailerService } from '@nestjs-modules/mailer';
@@ -179,6 +179,61 @@ export class UsersService {
       }
     })
     return {_id: user._id}
+  }
+
+  async retryPassword (email: string) {
+    // check email
+    const user = await this.userModel.findOne({email})
+
+    if(!user) {
+      throw new BadRequestException("Email not found")
+    }
+
+    // create code
+    const codeId = uuidv4()
+
+    //update user
+    await user.updateOne({
+      codeId: codeId, 
+      codeExpired: dayjs().add(5, 'minutes')
+    })
+
+    //send email
+    this.mailerService.sendMail({
+      to: user.email, // list of receivers
+      subject: 'Change your password at Minh Foods', // Subject line
+      template: "register",
+      context: {
+        name: user?.name ?? user.email,
+        activationCode: codeId
+      }
+    })
+    return {_id: user._id, email: user.email}
+  }
+
+  async changePassword (data: ChangePasswordAuthDto) {
+    // check password match
+    if(data.confirmPassword !== data.password) {
+      throw new BadRequestException("Mật khẩu và xác nhận mật khẩu không khớp")
+    }
+
+    // check email
+    const user = await this.userModel.findOne({email: data.email})
+
+    if(!user) {
+      throw new BadRequestException("Email not found")
+    }
+
+    // check expired code
+    const isBeforeCheck = dayjs().isBefore(user.codeExpired)
+    if(isBeforeCheck) {
+      // valid => update password
+      const newPassword = await hashPasswordHelper(data.password)
+      await user.updateOne({password: newPassword})
+    return {isBeforeCheck}
+    } else {
+      throw new BadRequestException("Code invalid or expired")
+    }
   }
 }
 
